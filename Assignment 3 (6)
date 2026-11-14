@@ -1,0 +1,782 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 33,
+   "id": "f94a1506",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "STUDENT_FILE = \"students.txt\"\n",
+    "USER_FILE = \"users.txt\"\n",
+    "REPORT_FILE = \"report.txt\"\n",
+    "SEP = \"|\"       "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 47,
+   "id": "df924efb",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def load_students(path):\n",
+    "    \"\"\"Read students from a text file into a dictionary and return it.\"\"\"\n",
+    "    records = {}\n",
+    "    f = None\n",
+    "    try:\n",
+    "        f = open(path, \"r\")\n",
+    "        for line in f:                     \n",
+    "            line = line.strip()\n",
+    "            if line == \"\":\n",
+    "                continue                  \n",
+    "            parts = line.split(SEP)         \n",
+    "            if len(parts) != 4:\n",
+    "                print(\"Skipping bad line:\", line)\n",
+    "                continue\n",
+    "            try:\n",
+    "                marks = float(parts[3])\n",
+    "            except ValueError:\n",
+    "                print(\"Skipping line with invalid marks:\", line)\n",
+    "                continue\n",
+    "            records[parts[0]] = {\"name\": parts[1], \"course\": parts[2], \"marks\": marks}\n",
+    "    except FileNotFoundError:\n",
+    "        print(\"File not found. A new one will be created when you save.\")\n",
+    "    except PermissionError:\n",
+    "        print(\"No permission to read\", path)\n",
+    "    finally:\n",
+    "        if f:\n",
+    "            f.close()                      \n",
+    "    return records\n",
+    "\n",
+    "\n",
+    "def load_users(path):\n",
+    "    \"\"\"Read 'username|password' lines into a dictionary.\"\"\"\n",
+    "    users = {}\n",
+    "    try:\n",
+    "        with open(path, \"r\") as f:\n",
+    "            for line in f:\n",
+    "                parts = line.strip().split(SEP)\n",
+    "                if len(parts) == 2:\n",
+    "                    users[parts[0]] = parts[1]\n",
+    "    except FileNotFoundError:\n",
+    "        print(\"Users file missing. Creating default admin account.\")\n",
+    "        with open(path, \"w\") as f:\n",
+    "            f.write(\"admin\" + SEP + \"admin123\\n\")\n",
+    "        users[\"admin\"] = \"admin123\"\n",
+    "    except PermissionError:\n",
+    "        print(\"No permission to read\", path)\n",
+    "    return users\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 35,
+   "id": "b8615ee0",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdin",
+     "output_type": "stream",
+     "text": [
+      "Username:  ee\n",
+      "Password:  ee\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Wrong login. Attempts left: 2\n"
+     ]
+    },
+    {
+     "name": "stdin",
+     "output_type": "stream",
+     "text": [
+      "Username:  eee\n",
+      "Password:  eee\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Wrong login. Attempts left: 1\n"
+     ]
+    },
+    {
+     "name": "stdin",
+     "output_type": "stream",
+     "text": [
+      "Username:  ee\n",
+      "Password:  eee\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Wrong login. Attempts left: 0\n",
+      "Too many wrong attempts.\n"
+     ]
+    }
+   ],
+   "source": [
+    "def save_students(path, records):\n",
+    "    \"\"\"Overwrite the file with all current records. Returns True/False.\"\"\"\n",
+    "    try:\n",
+    "        f = open(path, \"w\")                 # \"w\" = write (erases old content)\n",
+    "        for sid, d in records.items():\n",
+    "            f.write(sid + SEP + d[\"name\"] + SEP + d[\"course\"] + SEP + str(d[\"marks\"]) + \"\\n\")\n",
+    "        f.close()\n",
+    "        return True\n",
+    "    except PermissionError:\n",
+    "        print(\"No permission to write\", path)\n",
+    "        return False\n",
+    "\n",
+    "\n",
+    "def append_student(path, sid, d):\n",
+    "    \"\"\"Add one new line to the end of the file without erasing the rest.\"\"\"\n",
+    "    try:\n",
+    "        with open(path, \"a\") as f:          # \"a\" = append\n",
+    "            f.write(sid + SEP + d[\"name\"] + SEP + d[\"course\"] + SEP + str(d[\"marks\"]) + \"\\n\")\n",
+    "        return True\n",
+    "    except PermissionError:\n",
+    "        print(\"No permission to write\", path)\n",
+    "        return False\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 36,
+   "id": "01118dd6",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def user_login(users, username, password):\n",
+    "    \"\"\"Return True if username and password match, else False.\"\"\"\n",
+    "    if username in users and users[username] == password:\n",
+    "        return True\n",
+    "    return False\n",
+    "\n",
+    "\n",
+    "def login_screen(users):\n",
+    "    \"\"\"Give the user 3 attempts. Returns True if login succeeds.\"\"\"\n",
+    "    attempts = 0\n",
+    "    while attempts < 3:\n",
+    "        username = input(\"Username: \").strip()\n",
+    "        password = input(\"Password: \").strip()\n",
+    "        if user_login(users, username, password):\n",
+    "            print(\"Login successful. Welcome,\", username)\n",
+    "            return True\n",
+    "        attempts += 1\n",
+    "        print(\"Wrong login. Attempts left:\", 3 - attempts)\n",
+    "    print(\"Too many wrong attempts.\")\n",
+    "    return False"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 37,
+   "id": "1786168e",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def add_record(records, sid, name, course, marks):\n",
+    "    \"\"\"Add a student to the dictionary. Returns (True/False, message).\"\"\"\n",
+    "    if sid in records:\n",
+    "        return False, \"ID already exists.\"\n",
+    "    records[sid] = {\"name\": name, \"course\": course, \"marks\": marks}\n",
+    "    return True, \"Student added.\"\n",
+    "\n",
+    "\n",
+    "def search_record(records, keyword):\n",
+    "    \"\"\"Return a list of students whose ID or name matches the keyword.\"\"\"\n",
+    "    keyword = keyword.lower()\n",
+    "    results = []\n",
+    "    for sid, d in records.items():\n",
+    "        if keyword == sid.lower() or keyword in d[\"name\"].lower():\n",
+    "            results.append((sid, d))\n",
+    "    return results\n",
+    "\n",
+    "\n",
+    "def update_record(records, sid, marks):\n",
+    "    \"\"\"Change the marks of an existing student.\"\"\"\n",
+    "    if sid not in records:\n",
+    "        return False, \"Student not found.\"\n",
+    "    records[sid][\"marks\"] = marks\n",
+    "    return True, \"Marks updated.\"\n",
+    "\n",
+    "\n",
+    "def delete_record(records, sid):\n",
+    "    \"\"\"Remove a student by ID.\"\"\"\n",
+    "    if sid not in records:\n",
+    "        return False, \"Student not found.\"\n",
+    "    del records[sid]\n",
+    "    return True, \"Record deleted.\""
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 38,
+   "id": "73494277",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def rank_students(records):\n",
+    "    \"\"\"Return a list of (id, data) sorted from highest marks to lowest.\"\"\"\n",
+    "    items = list(records.items())           # turn dictionary into a list\n",
+    "    n = len(items)\n",
+    "    for i in range(n):                      # simple bubble sort\n",
+    "        for j in range(n - i - 1):\n",
+    "            if items[j][1][\"marks\"] < items[j + 1][1][\"marks\"]:\n",
+    "                items[j], items[j + 1] = items[j + 1], items[j]   # swap\n",
+    "    return items"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 39,
+   "id": "705d0afa",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def get_grade(marks):\n",
+    "    if marks >= 85:\n",
+    "        return \"A\"\n",
+    "    elif marks >= 70:\n",
+    "        return \"B\"\n",
+    "    elif marks >= 55:\n",
+    "        return \"C\"\n",
+    "    elif marks >= 40:\n",
+    "        return \"D\"\n",
+    "    else:\n",
+    "        return \"F\"\n",
+    "\n",
+    "\n",
+    "def generate_report(records):\n",
+    "    \"\"\"Return a text report with average, highest, lowest and grade counts.\"\"\"\n",
+    "    if len(records) == 0:\n",
+    "        return \"No records available.\"\n",
+    "\n",
+    "    total = 0\n",
+    "    highest_name, highest_marks = \"\", -1\n",
+    "    lowest_name, lowest_marks = \"\", 101\n",
+    "    grades = {\"A\": 0, \"B\": 0, \"C\": 0, \"D\": 0, \"F\": 0}\n",
+    "\n",
+    "    for sid, d in records.items():\n",
+    "        m = d[\"marks\"]\n",
+    "        total = total + m\n",
+    "        grades[get_grade(m)] += 1\n",
+    "        if m > highest_marks:\n",
+    "            highest_name, highest_marks = d[\"name\"], m\n",
+    "        if m < lowest_marks:\n",
+    "            lowest_name, lowest_marks = d[\"name\"], m\n",
+    "\n",
+    "    report = \"===== STUDENT REPORT =====\\n\"\n",
+    "    report += \"Total students : \" + str(len(records)) + \"\\n\"\n",
+    "    report += \"Average marks  : \" + str(round(total / len(records), 2)) + \"\\n\"\n",
+    "    report += \"Highest        : \" + highest_name + \" (\" + str(highest_marks) + \")\\n\"\n",
+    "    report += \"Lowest         : \" + lowest_name + \" (\" + str(lowest_marks) + \")\\n\"\n",
+    "    report += \"Grades         : \"\n",
+    "    for g, count in grades.items():\n",
+    "        report += g + \"=\" + str(count) + \" \"\n",
+    "    return report\n",
+    "\n",
+    "\n",
+    "def save_report(text):\n",
+    "    \"\"\"Append the report to report.txt.\"\"\"\n",
+    "    try:\n",
+    "        with open(REPORT_FILE, \"a\") as f:\n",
+    "            f.write(text + \"\\n\\n\")\n",
+    "        print(\"Report saved to\", REPORT_FILE)\n",
+    "    except PermissionError:\n",
+    "        print(\"Cannot save report: no permission.\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 40,
+   "id": "a3840ac2",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def get_valid_marks():\n",
+    "    \"\"\"Keep asking until the user types a number from 0 to 100.\"\"\"\n",
+    "    while True:\n",
+    "        try:\n",
+    "            marks = float(input(\"Enter marks (0-100): \"))\n",
+    "            if marks >= 0 and marks <= 100:\n",
+    "                return marks\n",
+    "            print(\"Marks must be between 0 and 100.\")\n",
+    "        except ValueError:\n",
+    "            print(\"Invalid input. Please type a number.\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 41,
+   "id": "ae4365e7",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def display_records(records):\n",
+    "    if len(records) == 0:\n",
+    "        print(\"No records found.\")\n",
+    "        return\n",
+    "    print(\"ID      Name                Course         Marks\")\n",
+    "    for sid, d in records.items():\n",
+    "        print(sid.ljust(8) + d[\"name\"].ljust(20) + d[\"course\"].ljust(15) + str(d[\"marks\"]))\n",
+    "\n",
+    "\n",
+    "def main():\n",
+    "    users = load_users(USER_FILE)\n",
+    "    records = load_students(STUDENT_FILE)      \n",
+    "\n",
+    "    if not login_screen(users):\n",
+    "        return\n",
+    "\n",
+    "    while True:                                 \n",
+    "        print(\"\\n--- STUDENT PORTAL ---\")\n",
+    "        print(\"1. Add student\")\n",
+    "        print(\"2. Search student\")\n",
+    "        print(\"3. Update marks\")\n",
+    "        print(\"4. Delete student\")\n",
+    "        print(\"5. View all students\")\n",
+    "        print(\"6. Generate report\")\n",
+    "        print(\"7. Exit\")\n",
+    "        print(\"8. Show ranking\")\n",
+    "        choice = input(\"Choose (1-8): \").strip()\n",
+    "\n",
+    "        if choice == \"1\":\n",
+    "            sid = input(\"ID: \").strip()\n",
+    "            name = input(\"Name: \").strip()\n",
+    "            course = input(\"Course: \").strip()\n",
+    "            if sid == \"\" or name == \"\" or course == \"\":\n",
+    "                print(\"All fields are required.\")\n",
+    "                continue\n",
+    "            if SEP in sid + name + course:\n",
+    "                print(\"The character\", SEP, \"is not allowed.\")\n",
+    "                continue\n",
+    "            marks = get_valid_marks()\n",
+    "            ok, msg = add_record(records, sid, name, course, marks)\n",
+    "            print(msg)\n",
+    "            if ok:\n",
+    "                append_student(STUDENT_FILE, sid, records[sid])\n",
+    "\n",
+    "        elif choice == \"2\":\n",
+    "            found = search_record(records, input(\"Enter ID or name: \").strip())\n",
+    "            for sid, d in found:\n",
+    "                print(sid, d[\"name\"], d[\"course\"], d[\"marks\"])\n",
+    "            if len(found) == 0:\n",
+    "                print(\"No match found.\")\n",
+    "\n",
+    "        elif choice == \"3\":\n",
+    "            sid = input(\"ID: \").strip()\n",
+    "            if sid in records:\n",
+    "                ok, msg = update_record(records, sid, get_valid_marks())\n",
+    "                print(msg)\n",
+    "                save_students(STUDENT_FILE, records)\n",
+    "            else:\n",
+    "                print(\"Student not found.\")\n",
+    "\n",
+    "        elif choice == \"4\":\n",
+    "            ok, msg = delete_record(records, input(\"ID: \").strip())\n",
+    "            print(msg)\n",
+    "            if ok:\n",
+    "                save_students(STUDENT_FILE, records)\n",
+    "\n",
+    "        elif choice == \"5\":\n",
+    "            display_records(records)\n",
+    "\n",
+    "        elif choice == \"6\":\n",
+    "            report = generate_report(records)\n",
+    "            print(report)\n",
+    "            save_report(report)\n",
+    "\n",
+    "        elif choice == \"7\":\n",
+    "            print(\"Goodbye!\")\n",
+    "            break\n",
+    "\n",
+    "        elif choice == \"8\":\n",
+    "            ranked = rank_students(records)\n",
+    "            position = 1\n",
+    "            for sid, d in ranked:\n",
+    "                print(position, d[\"name\"], d[\"marks\"])\n",
+    "                position += 1\n",
+    "\n",
+    "        else:\n",
+    "            print(\"Invalid choice. Please enter a number from 1 to 8.\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 48,
+   "id": "0449ce1a",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "(True, 'Student added.')\n",
+      "(True, 'Student added.')\n",
+      "(True, 'Student added.')\n",
+      "(False, 'ID already exists.')\n",
+      "[('S1', {'name': 'Ayesha', 'course': 'PAI', 'marks': 88.5})]\n",
+      "(True, 'Marks updated.')\n",
+      "(False, 'Student not found.')\n",
+      "\n",
+      "===== STUDENT REPORT =====\n",
+      "Total students : 3\n",
+      "Average marks  : 86.17\n",
+      "Highest        : Hamza (95)\n",
+      "Lowest         : Bilal (75)\n",
+      "Grades         : A=2 B=1 C=0 D=0 F=0 \n",
+      "\n",
+      "Ranking (highest first):\n",
+      "1 Hamza 95\n",
+      "2 Ayesha 88.5\n",
+      "3 Bilal 75\n",
+      "\n",
+      "Read back from file:\n",
+      "{'S1': {'name': 'Ayesha', 'course': 'PAI', 'marks': 88.5}, 'S2': {'name': 'Bilal', 'course': 'PAI', 'marks': 75.0}, 'S3': {'name': 'Hamza', 'course': 'PAI', 'marks': 95.0}}\n"
+     ]
+    }
+   ],
+   "source": [
+    "test = {}\n",
+    "print(add_record(test, \"S1\", \"Ayesha\", \"PAI\", 88.5))\n",
+    "print(add_record(test, \"S2\", \"Bilal\", \"PAI\", 62))\n",
+    "print(add_record(test, \"S3\", \"Hamza\", \"PAI\", 95))\n",
+    "print(add_record(test, \"S1\", \"Duplicate\", \"PAI\", 50))  \n",
+    "print(search_record(test, \"ayesha\"))\n",
+    "print(update_record(test, \"S2\", 75))\n",
+    "print(delete_record(test, \"S9\"))                          \n",
+    "print()\n",
+    "print(generate_report(test))\n",
+    "print()\n",
+    "print(\"Ranking (highest first):\")\n",
+    "position = 1\n",
+    "for sid, d in rank_students(test):\n",
+    "    print(position, d[\"name\"], d[\"marks\"])\n",
+    "    position += 1\n",
+    "print()\n",
+    "save_students(\"test_students.txt\", test)                  \n",
+    "print(\"Read back from file:\")\n",
+    "print(load_students(\"test_students.txt\"))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 49,
+   "id": "e405b5ae",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Missing file:\n",
+      "File not found. A new one will be created when you save.\n",
+      "{}\n",
+      "\n",
+      "Corrupted file:\n",
+      "Skipping line with invalid marks: S2|Bilal|PAI|abc\n",
+      "Skipping bad line: S3|OnlyTwoFields\n",
+      "{'S1': {'name': 'Ayesha', 'course': 'PAI', 'marks': 88.0}}\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(\"Missing file:\")\n",
+    "print(load_students(\"does_not_exist.txt\"))\n",
+    "\n",
+    "print(\"\\nCorrupted file:\")\n",
+    "f = open(\"bad_students.txt\", \"w\")\n",
+    "f.write(\"S1|Ayesha|PAI|88\\n\")\n",
+    "f.write(\"S2|Bilal|PAI|abc\\n\")       \n",
+    "f.write(\"S3|OnlyTwoFields\\n\")         \n",
+    "f.close()\n",
+    "print(load_students(\"bad_students.txt\"))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 50,
+   "id": "7d5013f6",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "students.txt already exists. Nothing changed.\n"
+     ]
+    }
+   ],
+   "source": [
+    "try:\n",
+    "    f = open(STUDENT_FILE, \"r\")\n",
+    "    f.close()\n",
+    "    print(STUDENT_FILE, \"already exists. Nothing changed.\")\n",
+    "except FileNotFoundError:\n",
+    "    append_student(STUDENT_FILE, \"S1\", {\"name\": \"Ayesha\", \"course\": \"PAI\", \"marks\": 88.5})\n",
+    "    append_student(STUDENT_FILE, \"S2\", {\"name\": \"Bilal\", \"course\": \"PAI\", \"marks\": 62})\n",
+    "    append_student(STUDENT_FILE, \"S3\", {\"name\": \"Hamza\", \"course\": \"PAI\", \"marks\": 95})\n",
+    "    print(STUDENT_FILE, \"created with 3 sample students.\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "ae8d968a",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdin",
+     "output_type": "stream",
+     "text": [
+      "Username:  admin\n",
+      "Password:  admin123\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Login successful. Welcome, admin\n",
+      "\n",
+      "--- STUDENT PORTAL ---\n",
+      "1. Add student\n",
+      "2. Search student\n",
+      "3. Update marks\n",
+      "4. Delete student\n",
+      "5. View all students\n",
+      "6. Generate report\n",
+      "7. Exit\n",
+      "8. Show ranking\n"
+     ]
+    },
+    {
+     "name": "stdin",
+     "output_type": "stream",
+     "text": [
+      "Choose (1-8):  6\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "===== STUDENT REPORT =====\n",
+      "Total students : 3\n",
+      "Average marks  : 81.83\n",
+      "Highest        : Hamza (95.0)\n",
+      "Lowest         : Bilal (62.0)\n",
+      "Grades         : A=2 B=0 C=1 D=0 F=0 \n",
+      "Report saved to report.txt\n",
+      "\n",
+      "--- STUDENT PORTAL ---\n",
+      "1. Add student\n",
+      "2. Search student\n",
+      "3. Update marks\n",
+      "4. Delete student\n",
+      "5. View all students\n",
+      "6. Generate report\n",
+      "7. Exit\n",
+      "8. Show ranking\n"
+     ]
+    },
+    {
+     "name": "stdin",
+     "output_type": "stream",
+     "text": [
+      "Choose (1-8):  4\n",
+      "ID:  8\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Student not found.\n",
+      "\n",
+      "--- STUDENT PORTAL ---\n",
+      "1. Add student\n",
+      "2. Search student\n",
+      "3. Update marks\n",
+      "4. Delete student\n",
+      "5. View all students\n",
+      "6. Generate report\n",
+      "7. Exit\n",
+      "8. Show ranking\n"
+     ]
+    },
+    {
+     "name": "stdin",
+     "output_type": "stream",
+     "text": [
+      "Choose (1-8):  8\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "1 Hamza 95.0\n",
+      "2 Ayesha 88.5\n",
+      "3 Bilal 62.0\n",
+      "\n",
+      "--- STUDENT PORTAL ---\n",
+      "1. Add student\n",
+      "2. Search student\n",
+      "3. Update marks\n",
+      "4. Delete student\n",
+      "5. View all students\n",
+      "6. Generate report\n",
+      "7. Exit\n",
+      "8. Show ranking\n"
+     ]
+    },
+    {
+     "name": "stdin",
+     "output_type": "stream",
+     "text": [
+      "Choose (1-8):  5\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "ID      Name                Course         Marks\n",
+      "S1      Ayesha              PAI            88.5\n",
+      "S2      Bilal               PAI            62.0\n",
+      "S3      Hamza               PAI            95.0\n",
+      "\n",
+      "--- STUDENT PORTAL ---\n",
+      "1. Add student\n",
+      "2. Search student\n",
+      "3. Update marks\n",
+      "4. Delete student\n",
+      "5. View all students\n",
+      "6. Generate report\n",
+      "7. Exit\n",
+      "8. Show ranking\n"
+     ]
+    },
+    {
+     "name": "stdin",
+     "output_type": "stream",
+     "text": [
+      "Choose (1-8):  3\n",
+      "ID:  2\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Student not found.\n",
+      "\n",
+      "--- STUDENT PORTAL ---\n",
+      "1. Add student\n",
+      "2. Search student\n",
+      "3. Update marks\n",
+      "4. Delete student\n",
+      "5. View all students\n",
+      "6. Generate report\n",
+      "7. Exit\n",
+      "8. Show ranking\n"
+     ]
+    },
+    {
+     "name": "stdin",
+     "output_type": "stream",
+     "text": [
+      "Choose (1-8):  3\n",
+      "ID:  S2\n",
+      "Enter marks (0-100):  66\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Marks updated.\n",
+      "\n",
+      "--- STUDENT PORTAL ---\n",
+      "1. Add student\n",
+      "2. Search student\n",
+      "3. Update marks\n",
+      "4. Delete student\n",
+      "5. View all students\n",
+      "6. Generate report\n",
+      "7. Exit\n",
+      "8. Show ranking\n"
+     ]
+    },
+    {
+     "name": "stdin",
+     "output_type": "stream",
+     "text": [
+      "Choose (1-8):  2\n",
+      "Enter ID or name:  bilal\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "S2 Bilal PAI 66.0\n",
+      "\n",
+      "--- STUDENT PORTAL ---\n",
+      "1. Add student\n",
+      "2. Search student\n",
+      "3. Update marks\n",
+      "4. Delete student\n",
+      "5. View all students\n",
+      "6. Generate report\n",
+      "7. Exit\n",
+      "8. Show ranking\n"
+     ]
+    }
+   ],
+   "source": [
+    "main()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "783057be-9c3b-40e7-a634-4ee68c00b6e0",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3 (ipykernel)",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.14.6"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
